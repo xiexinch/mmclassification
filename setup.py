@@ -144,7 +144,7 @@ def add_mim_extension():
 
 
 if __name__ == '__main__':
-    add_mim_extension()
+    #add_mim_extension()
     setup(
         name='mmcls',
         version=get_version(),
