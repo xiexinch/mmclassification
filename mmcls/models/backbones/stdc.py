@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
-from mmcv.cnn import ConvModule
+from torch.nn.modules.batchnorm import _BatchNorm
+from mmcv.cnn import ConvModule, KaimingInit, ConstantInit, NormalInit
 from mmcv.runner.base_module import BaseModule, ModuleList, Sequential
 
 from ..builder import BACKBONES
@@ -124,6 +125,7 @@ class STDCNet(BaseBackbone):
                  act_cfg,
                  stdc_num_convs=4,
                  with_cp=False,
+                 frozen_stages=-1,
                  pretrained=None,
                  init_cfg=None):
         super(STDCNet, self).__init__(init_cfg)
@@ -141,6 +143,7 @@ class STDCNet(BaseBackbone):
         self.pretrained = pretrained
         self.stdc_num_convs = stdc_num_convs
         self.with_cp = with_cp
+        self.frozen_stages = frozen_stages
 
         self.stages = ModuleList([
             ConvModule(
@@ -190,6 +193,31 @@ class STDCNet(BaseBackbone):
                     num_convs=self.stdc_num_convs,
                     fusion_type=bottleneck_type))
         return Sequential(*layers)
+
+    def _freeze_stages(self):
+        for i in range(0, self.frozen_stages + 1):
+            layer = getattr(self, f'layer{i}')
+            layer.eval()
+            for param in layer.parameters():
+                param.requires_grad = False
+
+    def init_weights(self):
+        super(STDCNet, self).init_weights()
+        for m in self.modules():
+            if isinstance(m, ConvModule):
+                KaimingInit(m)
+            elif isinstance(m, nn.BatchNorm2d):
+                ConstantInit(m)
+            elif isinstance(m, nn.Linear):
+                NormalInit(m)
+
+    def train(self, mode=True):
+        super(STDCNet, self).train(mode)
+        self._freeze_stages()
+        if mode and self.norm_eval:
+            for m in self.modules():
+                if isinstance(m, _BatchNorm):
+                    m.eval()
 
     def forward(self, x):
         outs = []

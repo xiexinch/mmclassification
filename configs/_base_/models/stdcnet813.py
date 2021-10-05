@@ -23,3 +23,4 @@ model = dict(
         topk=(1, 5),
         cal_acc=False))
 train_cfg = dict(mixup=dict(alpha=0.2, num_classes=1000))
+evaluation = dict(interval=25)
